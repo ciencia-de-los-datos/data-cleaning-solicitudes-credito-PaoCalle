@@ -7,59 +7,126 @@ correctamente. Tenga en cuenta datos faltantes y duplicados.
 
 """
 import pandas as pd
-import numpy as np
-import warnings
-warnings.filterwarnings("ignore")
 
+
+"""
+df.idea_negocio=df.idea_negocio.str.replace(" ", "_").str.replace("-","_").str.rstrip("_")
+df.línea_credito=df.línea_credito.str.lower()
+df.línea_credito=df.línea_credito.str.rstrip(". ").str.rstrip("._").str.rstrip(".-")
+df.línea_credito=df.línea_credito.str.replace("soli-diaria", "solidaria").str.replace(" ", "_").str.replace("-", "_")
+df.monto_del_credito=pd.to_numeric(df.monto_del_credito.str.replace("$ ", "").str.replace(".00", "").str.replace(",", ""))
+df.barrio=df.barrio.str.rstrip(" ").str.rstrip("_").str.rstrip("-").str.rstrip(".")
+df.barrio=df.barrio.str.lower()
+df.barrio=df.barrio.str.replace("-","_").str.replace(" ","_")
+#df.barrio=df.barrio.str.replace("andaluc¿a","andalucia").str.replace("bel¿n","belen").str.replace("antonio_nari¿o", "antonio_nariño")
+#df.barrio=df.barrio.str.replace("boyac¿","boyaca").str.replace("campo_vald¿s_no.1","campo_valdes_no._1").str.replace("barrio_caycedo","barrio_caicedo").str.replace("santo_domingo_savio","santo_domingo")
+
+#-----FIN LIMPIAR STANDARIZAR COLUMNAS DE TEXTO
+
+#df=df.drop_duplicates()
+
+#----DEFINIR TABLA CON "tipo_de_emprendimiento","idea_negocio" SIN DATOS AMBIGUOS
+df2=df[["tipo_de_emprendimiento","idea_negocio"]].drop_duplicates(subset=["tipo_de_emprendimiento","idea_negocio"], ignore_index=True)
+#df2=df2.dropna(ignore_index=True)
+df2=df2.assign(CantR=0)
+
+for i in range(0, len(df2)):
+       cant=len(df[(df.tipo_de_emprendimiento==df2.loc[i]["tipo_de_emprendimiento"])&
+                (df.idea_negocio==df2.loc[i]["idea_negocio"])])
+       df2.loc[i,"CantR"]=cant
+
+df4=pd.DataFrame(df["idea_negocio"].drop_duplicates(ignore_index=True))
+df4=df4.assign(tipo_de_emprendimiento="")
+
+for i in range(0, len(df4)):
+    j =df2[(df2.idea_negocio==df4.loc[i]["idea_negocio"])]["CantR"].idxmax()
+    df4.loc[i, "tipo_de_emprendimiento"]=df2.loc[j,"tipo_de_emprendimiento"]
+
+#----FIN DEFINIR TABLA CON "tipo_de_emprendimiento","idea_negocio" SIN DATOS AMBIGUOS
+
+#----DEFINIR TABLA CON "barrio","comuna_ciudadano" SIN DATOS AMBIGUOS
+df5=df[["barrio","comuna_ciudadano"]].drop_duplicates(subset=["barrio","comuna_ciudadano"], ignore_index=True)
+#df5=df5.dropna(ignore_index=True)
+df5=df5.assign(CantR=0)
+
+for i in range(0, len(df5)):
+       cant=len(df[(df.barrio==df5.loc[i]["barrio"])&
+                (df.comuna_ciudadano==df5.loc[i]["comuna_ciudadano"])])
+       df5.loc[i,"CantR"]=cant
+
+df6=pd.DataFrame(df["barrio"].drop_duplicates(ignore_index=True))
+#df6=df6.dropna(ignore_index=True)
+df6=df6.assign(comuna_ciudadano="")
+
+for i in range(0, len(df6)):
+    try:
+        j =df5[(df5.barrio==df6.loc[i]["barrio"])]["CantR"].idxmax()
+        df6.loc[i, "comuna_ciudadano"]=df5.loc[j,"comuna_ciudadano"]
+    except ValueError:
+        df6.loc[i, "comuna_ciudadano"]=""
+#----FIN DEFINIR TABLA CON "barrio","comuna_ciudadano" SIN DATOS AMBIGUOS
+
+# APLICAR TABLA CON "tipo_de_emprendimiento","idea_negocio" SIN DATOS AMBIGUOS
+for i in range(0, len(df)):
+#    if pd.isna(df.loc[i,"tipo_de_emprendimiento"]):
+        df.loc[i,"tipo_de_emprendimiento"]=str(df4[(df4.idea_negocio==df.loc[i]["idea_negocio"])]["tipo_de_emprendimiento"].values).replace("['","").replace("']","")
+# FIN APLICAR TABLA CON "tipo_de_emprendimiento","idea_negocio" SIN DATOS AMBIGUOS
+
+# APLICAR TABLA CON "barrio","comuna_ciudadano" SIN DATOS AMBIGUOS
+for i in range(0, len(df)):
+#    if pd.isna(df.loc[i,"comuna_ciudadano"]):
+        df.loc[i,"comuna_ciudadano"]=str(df6[(df6.barrio==df.loc[i]["barrio"])]["comuna_ciudadano"].values).replace("[","").replace("]","")
+# FIN APLICAR TABLA CON "barrio","comuna_ciudadano" SIN DATOS AMBIGUOS
+
+dfnodup=df.drop_duplicates()
+"""
 def clean_data():
 
-    df = pd.read_csv("solicitudes_credito.csv", sep=";")
-
+    
     #
     # Inserte su código aquí
     #
-    #Drop na's y columnas no necesarias
-    df=df.dropna()
-    cols_drop=['Unnamed: 0']	
-    df.drop(columns=cols_drop,inplace=True)
+    df = pd.read_csv("solicitudes_credito.csv", sep=";", index_col=0)
 
-    #Reemplazar caracteres
-    for col in df.columns:
-        dicc_replace={'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U','$':''
-                    ,'-':" ",'_':" "}
-        
-        for key in dicc_replace:
-            df[col]=df[col].astype(str).str.upper().str.replace(key,dicc_replace[key])
+    df=df.dropna(ignore_index=True)
 
-    #Orden fecha
-    f=lambda x: x.split('/')
-    df.fecha_de_beneficio=df.fecha_de_beneficio.apply(f)
-    df['len_first_date_value']=df.fecha_de_beneficio.apply(lambda x: len(x[0]))
-    df.fecha_de_beneficio.loc[df['len_first_date_value']>2]=df.fecha_de_beneficio.apply(lambda x: str(x[2])+'/'+str(x[1])+'/'+str(x[0]))
-    df.fecha_de_beneficio.loc[df['len_first_date_value']<=2]=df.fecha_de_beneficio.apply(lambda x: str(x[0])+'/'+str(x[1])+'/'+str(x[2]))
-    df.fecha_de_beneficio=pd.to_datetime(df.fecha_de_beneficio)
+    #-----LIMPIAR STANDARIZAR COLUMNAS DE TEXTO
 
-    #Formato monto
-    df['monto_del_credito']=df['monto_del_credito'].str.split('.').str[0]
-    df['monto_del_credito'].replace({",": ''}, inplace=(True),  regex=True)	 
-    df['monto_del_credito']=df['monto_del_credito'].astype(int)
-        
-    #Reemplazar barrios con errores
-    dicc_barrios={'ANDALUCÑA':'ANDALUCIA','BARRIO CAYCEDO':'BARRIO CAICEDO'
-                ,'BELÑN':'BELEN','BOYACÑ':'BOYACA','CAMPO VALDÑS NO.1':'CAMPO VALDES NO. 1'
-                }
-    for key in dicc_barrios:
-        df.barrio=df.barrio.str.replace(key,dicc_barrios[key])
 
-    #Reemplazar comunas erroneas
-    """df.comuna_ciudadano=df.comuna_ciudadano.astype(str)
-    dicc_comunas={'90.0':'9.0','80.0':'8.0','70.0':'7.0','60.0':'6.0','50.0':'5.0'}
-    for key in dicc_comunas:
-        df.comuna_ciudadano=df.comuna_ciudadano.str.replace(key,dicc_comunas[key])
-"""
-    #Quitar columnas auxiliares para calculos y duplicados
-    df=df.drop(columns=['len_first_date_value'])
+    df.sexo=df.sexo.str.lower()
+    df.tipo_de_emprendimiento=df.tipo_de_emprendimiento.str.lower()
+    df.idea_negocio=df.idea_negocio.str.lower()
+    df.barrio=df.barrio.str.lower()
+    df.línea_credito=df.línea_credito.str.lower()
+
+    df["sexo"]=df["sexo"].astype(str)
+    df["tipo_de_emprendimiento"]=df["tipo_de_emprendimiento"].astype(str)
+    df["idea_negocio"]=df["idea_negocio"].astype(str)
+    df["barrio"]=df["barrio"].astype(str)
+    df["línea_credito"]=df["línea_credito"].astype(str)
+    df["comuna_ciudadano"]=df["comuna_ciudadano"].astype(str)
+
+    df.sexo=df.sexo.str.replace("_","-").str.replace("-"," ")
+    df.tipo_de_emprendimiento=df.tipo_de_emprendimiento.str.replace("_","-").str.replace("-"," ")
+    df.idea_negocio=df.idea_negocio.str.replace("_","-").str.replace("-"," ")
+    df.barrio=df.barrio.str.replace("_","-").str.replace("-"," ")
+    df.línea_credito=df.línea_credito.str.replace("_","-").str.replace("-"," ")
+    df.monto_del_credito=df.monto_del_credito.str.replace("$ ", "").str.replace(",", "")
+    df["monto_del_credito"]=df["monto_del_credito"].astype(float)
+
+    df.sexo=df.sexo.str.strip()
+    df.tipo_de_emprendimiento=df.tipo_de_emprendimiento.str.strip()
+    df.idea_negocio=df.idea_negocio.str.strip()
+    #df.barrio=df.barrio.str.strip()
+    df.línea_credito=df.línea_credito.str.strip()
+
+    df.fecha_de_beneficio=pd.to_datetime(df.fecha_de_beneficio, format="mixed", dayfirst=True)
+
+    #-----LIMPIAR STANDARIZAR COLUMNAS DE TEXTO
+
     df=df.drop_duplicates()
-
-
+ 
     return df
+
+dff=clean_data()
+lis=clean_data().barrio.value_counts().to_list()

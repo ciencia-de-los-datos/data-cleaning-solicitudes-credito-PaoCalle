@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
-#ok
+
 def clean_data():
 
     df = pd.read_csv("solicitudes_credito.csv", sep=";")

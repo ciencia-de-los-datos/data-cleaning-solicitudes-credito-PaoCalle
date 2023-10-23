@@ -6,60 +6,33 @@ Realice la limpieza del dataframe. Los tests evaluan si la limpieza fue realizad
 correctamente. Tenga en cuenta datos faltantes y duplicados.
 
 """
+from dateutil.parser import parse
 import pandas as pd
-import numpy as np
-import warnings
-warnings.filterwarnings("ignore")
-#ok
+
+
 def clean_data():
 
-    df = pd.read_csv("solicitudes_credito.csv", sep=";")
+    df = pd.read_csv("solicitudes_credito.csv", sep=";",index_col=0)
+    df.reset_index(inplace=True,drop=True)
+    
+    df['fecha_de_beneficio'] = pd.to_datetime(df['fecha_de_beneficio'],dayfirst=True, format='mixed')
+    
+    df.dropna(axis='index',inplace=True)
+    df.drop_duplicates(inplace=True)
 
-    #
-    # Inserte su código aquí
-    #
-    #Drop na's y columnas no necesarias
-    df=df.dropna()
-    cols_drop=['Unnamed: 0']	
-    df.drop(columns=cols_drop,inplace=True)
+    df['sexo'] = df['sexo'].str.lower().astype(str).str.strip()
+    df['tipo_de_emprendimiento'] = df['tipo_de_emprendimiento'].str.lower().astype(str)
+    df['idea_negocio'] = df['idea_negocio'].str.lower().astype(str)
+    df['barrio'] = df['barrio'].str.lower().astype(str)
+    df['línea_credito'] = df['línea_credito'].str.lower().astype(str)
+     
+    df['idea_negocio'] = df['idea_negocio'].str.replace('_',' ').str.replace('-',' ').str.strip()
+    df['barrio'] = df['barrio'].str.replace('_','-').str.replace('-',' ')
+    df['línea_credito'] = df['línea_credito'].str.replace('_',' ').str.replace('-',' ').str.strip()
 
-    #Reemplazar caracteres
-    for col in df.columns:
-        dicc_replace={'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U','$':''
-                    ,'-':" ",'_':" "}
-        
-        for key in dicc_replace:
-            df[col]=df[col].astype(str).str.upper().str.replace(key,dicc_replace[key])
-
-    #Orden fecha
-    f=lambda x: x.split('/')
-    df.fecha_de_beneficio=df.fecha_de_beneficio.apply(f)
-    df['len_first_date_value']=df.fecha_de_beneficio.apply(lambda x: len(x[0]))
-    df.fecha_de_beneficio.loc[df['len_first_date_value']>2]=df.fecha_de_beneficio.apply(lambda x: str(x[2])+'/'+str(x[1])+'/'+str(x[0]))
-    df.fecha_de_beneficio.loc[df['len_first_date_value']<=2]=df.fecha_de_beneficio.apply(lambda x: str(x[0])+'/'+str(x[1])+'/'+str(x[2]))
-    df.fecha_de_beneficio=pd.to_datetime(df.fecha_de_beneficio)
-
-    #Formato monto
-    df['monto_del_credito']=df['monto_del_credito'].str.split('.').str[0]
-    df['monto_del_credito'].replace({",": ''}, inplace=(True),  regex=True)	 
-    df['monto_del_credito']=df['monto_del_credito'].astype(int)
-        
-    #Reemplazar barrios con errores
-    dicc_barrios={'ANDALUCÑA':'ANDALUCIA','BARRIO CAYCEDO':'BARRIO CAICEDO'
-                ,'BELÑN':'BELEN','BOYACÑ':'BOYACA','CAMPO VALDÑS NO.1':'CAMPO VALDES NO. 1'
-                }
-    for key in dicc_barrios:
-        df.barrio=df.barrio.str.replace(key,dicc_barrios[key])
-
-    #Reemplazar comunas erroneas
-    """df.comuna_ciudadano=df.comuna_ciudadano.astype(str)
-    dicc_comunas={'90.0':'9.0','80.0':'8.0','70.0':'7.0','60.0':'6.0','50.0':'5.0'}
-    for key in dicc_comunas:
-        df.comuna_ciudadano=df.comuna_ciudadano.str.replace(key,dicc_comunas[key])
-"""
-    #Quitar columnas auxiliares para calculos y duplicados
-    df=df.drop(columns=['len_first_date_value'])
-    df=df.drop_duplicates()
-
+    df['monto_del_credito'] = df['monto_del_credito'].str.replace(',','').str.replace('$','',regex=False).str.replace(' ','').str.strip().astype(float)   
+    
+    df.drop_duplicates(inplace=True)
+    df.dropna(axis='index',inplace=True)
 
     return df
